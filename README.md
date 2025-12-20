@@ -1,0 +1,49 @@
+# 3D Particle Morphing
+
+An interactive WebGL visualization where particles morph between different 3D shapes. This project demonstrates the use of Three.js for 3D rendering and GSAP for smooth animations.
+
+[**Live Demo**](https://kshitij978.github.io/Three.js-Point-cloud-morphing-effect/)
+
+## Features
+
+- **Smooth Morphing**: Transition particles between 3D models (Queen, Pawn, and Explosion).
+- **Surface Sampling**: Particles are dynamically distributed on the surface of 3D meshes.
+- **Interactive UI**: Change particle size, animation speed, and colors in real-time.
+- **Responsive**: Works on desktop and mobile browsers.
+
+## Tech Stack
+
+- **Three.js**: 3D engine and WebGL rendering.
+- **GSAP**: Animation and interpolation.
+- **TypeScript**: Typed JavaScript for better code structure.
+- **Vite**: Modern frontend build tool.
+
+## Setup & Installation
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/Kshitij978/Three.js-Point-cloud-morphing-effect.git
+   cd Three.js-Point-cloud-morphing-effect
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. Run locally:
+
+   ```bash
+   npm run dev
+   ```
+
+4. Build for production:
+   ```bash
+   npm run build
+   ```
+
+## License
+
+MIT
