@@ -1,0 +1,35 @@
+{
+  "name": "3d-particle-morphing",
+  "version": "2.0.0",
+  "description": "Interactive 3D particle morphing visualization with Three.js",
+  "type": "module",
+  "homepage": ".",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
+  },
+  "keywords": [
+    "threejs",
+    "3d",
+    "particles",
+    "morphing",
+    "webgl",
+    "animation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "gsap": "^3.12.5",
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.182.0",
+    "gh-pages": "^6.3.0",
+    "terser": "^5.44.1",
+    "typescript": "^5.9.3",
+    "vite": "^5.0.11"
+  }
+}
