@@ -10,6 +10,8 @@ interface ParticleSettings {
   autoRotate: boolean;
   morphDuration: number;
   currentColor: THREE.Color;
+  autoMorph: boolean;
+  autoMorphDuration: number;
 }
 
 class ParticleMorpher {
@@ -24,6 +26,10 @@ class ParticleMorpher {
   private isTransitioning: boolean = false;
   private loader: OBJLoader;
   private lastTime: number = 0;
+  private lastMorphTime: number = 0;
+  private mouse: THREE.Vector2 = new THREE.Vector2(-100, -100);
+  private raycaster: THREE.Raycaster = new THREE.Raycaster();
+  private mouseWorld: THREE.Vector3 = new THREE.Vector3();
 
   constructor() {
     const canvas = document.getElementById("canvas") as HTMLCanvasElement;
@@ -37,10 +43,9 @@ class ParticleMorpher {
       45,
       window.innerWidth / window.innerHeight,
       0.1,
-      1000
+      2000
     );
-    this.camera.position.set(0, 10, 50);
-    this.camera.lookAt(0, 0, 0);
+    this.updateCameraPosition();
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.container,
@@ -58,6 +63,8 @@ class ParticleMorpher {
       autoRotate: true,
       morphDuration: 2.5,
       currentColor: new THREE.Color(0x088cff),
+      autoMorph: true,
+      autoMorphDuration: 5000,
     };
 
     this.loader = new OBJLoader();
@@ -89,13 +96,86 @@ class ParticleMorpher {
 
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
 
-    const material = new THREE.PointsMaterial({
-      color: this.settings.currentColor,
-      size: this.settings.particleSize,
-      sizeAttenuation: false,
+    const randoms = new Float32Array(this.settings.particleCount);
+    for (let i = 0; i < this.settings.particleCount; i++) {
+      randoms[i] = Math.random();
+    }
+    geometry.setAttribute("aRandom", new THREE.BufferAttribute(randoms, 1));
+
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        uMouse: { value: new THREE.Vector3() },
+        uRadius: { value: 3.0 },
+        uStrength: { value: 10.0 },
+        uColor: { value: this.settings.currentColor },
+        uSize: { value: this.settings.particleSize },
+        uOpacity: { value: 0.8 },
+        uTime: { value: 0 },
+      },
+      vertexShader: `
+        uniform vec3 uMouse;
+        uniform float uRadius;
+        uniform float uStrength;
+        uniform float uSize;
+        uniform float uTime;
+
+        attribute float aRandom;
+
+        float rand(vec3 co) {
+          return fract(sin(dot(co.xyz, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+        }
+
+        void main() {
+          vec3 pos = position;
+          vec4 worldPosition = modelMatrix * vec4(pos, 1.0);
+          
+          float dist = distance(worldPosition.xyz, uMouse);
+          
+          // Smooth noise-like influence
+          float time = uTime * 0.0005;
+          float slowTime = uTime * 0.0002;
+          
+          float noise = aRandom;
+          
+          // Create an irregular, organic falloff
+          float falloff = smoothstep(uRadius * (1.2 + noise * 0.5), 0.0, dist);
+          
+          if (falloff > 0.0) {
+            // Smooth, drifty random direction
+            vec3 randomDir = vec3(
+              sin(pos.x * 0.15 + slowTime + noise * 6.28),
+              cos(pos.y * 0.15 + slowTime * 1.1 + noise * 6.28),
+              sin(pos.z * 0.15 + slowTime * 1.2 + noise * 6.28)
+            );
+            
+            vec3 repelDir = normalize(worldPosition.xyz - uMouse);
+            
+            // Mix repel and chaos, biased towards chaos but more fluid
+            vec3 finalDir = normalize(repelDir * 0.3 + randomDir * 0.7);
+            
+            // Apply displacement - reduced strength for more control
+            float displacement = falloff * uStrength * (0.8 + sin(uTime * 0.001 + noise * 6.28) * 0.2);
+            worldPosition.xyz += finalDir * displacement;
+          }
+          
+          vec4 mvPosition = viewMatrix * worldPosition;
+          gl_Position = projectionMatrix * mvPosition;
+          gl_PointSize = uSize;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uColor;
+        uniform float uOpacity;
+
+        void main() {
+          float dist = distance(gl_PointCoord, vec2(0.5));
+          if (dist > 0.5) discard;
+          gl_FragColor = vec4(uColor, uOpacity);
+        }
+      `,
       transparent: true,
-      opacity: 0.8,
       blending: THREE.AdditiveBlending,
+      depthWrite: false,
     });
 
     this.particles = new THREE.Points(geometry, material);
@@ -103,7 +183,7 @@ class ParticleMorpher {
   }
 
   private async loadModels() {
-    const loadModel = (name: string, path: string, scale: number) => {
+    const loadModel = (name: string, path: string) => {
       return new Promise<void>((resolve) => {
         this.loader.load(
           path,
@@ -111,14 +191,12 @@ class ParticleMorpher {
             let mesh: THREE.Mesh | null = null;
             obj.traverse((child) => {
               if ((child as THREE.Mesh).isMesh) {
-                const m = child as THREE.Mesh;
-                m.geometry.scale(scale, scale, scale);
-                m.geometry.center();
-                mesh = m;
+                mesh = child as THREE.Mesh;
               }
             });
 
             if (mesh) {
+              this.normalizeMesh(mesh);
               const points = this.samplePointsOnSurface(
                 mesh,
                 this.settings.particleCount
@@ -139,9 +217,24 @@ class ParticleMorpher {
     };
 
     await Promise.all([
-      loadModel("queen", "models/Queen.obj", 200),
-      loadModel("pawn", "models/Pawn.obj", 250),
+      loadModel("queen", "models/Queen.obj"),
+      loadModel("pawn", "models/Pawn.obj"),
     ]);
+  }
+
+  private normalizeMesh(mesh: THREE.Mesh, targetSize: number = 20) {
+    mesh.geometry.computeBoundingBox();
+    const box = mesh.geometry.boundingBox!;
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    const maxDim = Math.max(size.x, size.y, size.z);
+    console.log(maxDim);
+    if (maxDim > 0) {
+      const scale = targetSize / maxDim;
+      mesh.geometry.scale(scale, scale, scale);
+    }
+    mesh.geometry.center();
   }
 
   private samplePointsOnSurface(mesh: THREE.Mesh, count: number): Float32Array {
@@ -212,22 +305,63 @@ class ParticleMorpher {
   private setColor(colorHex: string) {
     if (!this.particles) return;
     const color = new THREE.Color(colorHex);
-    gsap.to((this.particles.material as THREE.PointsMaterial).color, {
-      duration: 1,
-      r: color.r,
-      g: color.g,
-      b: color.b,
-      ease: "power2.out",
-    });
+    if (
+      this.particles &&
+      this.particles.material instanceof THREE.ShaderMaterial
+    ) {
+      gsap.to(this.particles.material.uniforms.uColor.value, {
+        duration: 1,
+        r: color.r,
+        g: color.g,
+        b: color.b,
+        ease: "power2.out",
+      });
+    }
     this.settings.currentColor = color;
   }
 
   private setupEvents() {
-    window.addEventListener("resize", () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+    window.addEventListener("resize", () => this.handleResize());
+
+    const updateMouse = (x: number, y: number) => {
+      this.mouse.x = (x / window.innerWidth) * 2 - 1;
+      this.mouse.y = -(y / window.innerHeight) * 2 + 1;
+    };
+
+    window.addEventListener("mousemove", (e) =>
+      updateMouse(e.clientX, e.clientY)
+    );
+
+    window.addEventListener(
+      "touchstart",
+      (e) => {
+        const isCanvas = (e.target as HTMLElement).id === "canvas";
+        if (e.touches.length > 0) {
+          updateMouse(e.touches[0].clientX, e.touches[0].clientY);
+        }
+        if (isCanvas) e.preventDefault();
+      },
+      { passive: false }
+    );
+
+    window.addEventListener(
+      "touchmove",
+      (e) => {
+        const isCanvas = (e.target as HTMLElement).id === "canvas";
+        if (e.touches.length > 0) {
+          updateMouse(e.touches[0].clientX, e.touches[0].clientY);
+        }
+        if (isCanvas) e.preventDefault();
+      },
+      { passive: false }
+    );
+
+    const resetMouse = () => {
+      this.mouse.set(-100, -100);
+    };
+
+    window.addEventListener("mouseleave", resetMouse);
+    window.addEventListener("touchend", resetMouse);
 
     // Info toggle
     const infoPanel = document.getElementById("info-panel");
@@ -237,6 +371,41 @@ class ParticleMorpher {
         infoPanel.classList.toggle("open");
       });
     }
+
+    // Initial call to set correct size and aspect
+    this.handleResize();
+  }
+
+  private handleResize() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    this.camera.aspect = width / height;
+    this.updateCameraPosition();
+    this.camera.updateProjectionMatrix();
+
+    this.renderer.setSize(width, height);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  }
+
+  private updateCameraPosition() {
+    const aspect = this.camera.aspect;
+    const fov = this.camera.fov;
+
+    // Calculate distance needed to fit the model (targetSize = 20)
+    const targetDim = 25;
+    const fovRad = (fov * Math.PI) / 180;
+    let dist;
+
+    if (aspect >= 1) {
+      dist = targetDim / (2 * Math.tan(fovRad / 2));
+    } else {
+      dist = targetDim / (aspect * 2 * Math.tan(fovRad / 2));
+    }
+
+    const finalDist = Math.max(dist, 40);
+    this.camera.position.set(0, 10, finalDist);
+    this.camera.lookAt(0, 0, 0);
   }
 
   private setupUI() {
@@ -273,8 +442,11 @@ class ParticleMorpher {
       sizeSlider.addEventListener("input", (e) => {
         const val = parseFloat((e.target as HTMLInputElement).value);
         this.settings.particleSize = val;
-        if (this.particles)
-          (this.particles.material as THREE.PointsMaterial).size = val;
+        if (
+          this.particles &&
+          this.particles.material instanceof THREE.ShaderMaterial
+        )
+          this.particles.material.uniforms.uSize.value = val;
         if (sizeValue) sizeValue.textContent = val.toFixed(1);
       });
     }
@@ -298,6 +470,18 @@ class ParticleMorpher {
     if (autoRotateCheck) {
       autoRotateCheck.addEventListener("change", (e) => {
         this.settings.autoRotate = (e.target as HTMLInputElement).checked;
+      });
+    }
+
+    // Auto Morph
+    const autoMorphCheck = document.getElementById(
+      "auto-morph"
+    ) as HTMLInputElement;
+    if (autoMorphCheck) {
+      autoMorphCheck.checked = this.settings.autoMorph;
+      autoMorphCheck.addEventListener("change", (e) => {
+        this.settings.autoMorph = (e.target as HTMLInputElement).checked;
+        if (this.settings.autoMorph) this.lastMorphTime = performance.now();
       });
     }
 
@@ -332,8 +516,37 @@ class ParticleMorpher {
       this.particles.rotation.y += 0.005 * this.settings.animationSpeed;
     }
 
+    // Update mouse position in world space
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    this.raycaster.ray.intersectPlane(plane, this.mouseWorld);
+
+    if (
+      this.particles &&
+      this.particles.material instanceof THREE.ShaderMaterial
+    ) {
+      this.particles.material.uniforms.uMouse.value.copy(this.mouseWorld);
+      this.particles.material.uniforms.uTime.value = performance.now();
+    }
+
     this.updateStats();
+    this.handleAutoMorph();
     this.renderer.render(this.scene, this.camera);
+  }
+
+  private handleAutoMorph() {
+    if (!this.settings.autoMorph || this.isTransitioning) return;
+
+    const now = performance.now();
+    if (now - this.lastMorphTime > this.settings.autoMorphDuration) {
+      const morphKeys = Object.keys(this.models);
+      if (morphKeys.length > 0) {
+        const currentIndex = morphKeys.indexOf(this.currentShape);
+        const nextIndex = (currentIndex + 1) % morphKeys.length;
+        this.morphTo(morphKeys[nextIndex]);
+        this.lastMorphTime = now;
+      }
+    }
   }
 
   private updateStats() {
