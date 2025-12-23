@@ -12,6 +12,8 @@ interface ParticleSettings {
   currentColor: THREE.Color;
   autoMorph: boolean;
   autoMorphDuration: number;
+  interactionRadius: number;
+  interactionStrength: number;
 }
 
 class ParticleMorpher {
@@ -65,6 +67,8 @@ class ParticleMorpher {
       currentColor: new THREE.Color(0x088cff),
       autoMorph: true,
       autoMorphDuration: 5000,
+      interactionRadius: 3.0,
+      interactionStrength: 10.0,
     };
 
     this.loader = new OBJLoader();
@@ -105,8 +109,8 @@ class ParticleMorpher {
     const material = new THREE.ShaderMaterial({
       uniforms: {
         uMouse: { value: new THREE.Vector3() },
-        uRadius: { value: 3.0 },
-        uStrength: { value: 10.0 },
+        uRadius: { value: this.settings.interactionRadius },
+        uStrength: { value: this.settings.interactionStrength },
         uColor: { value: this.settings.currentColor },
         uSize: { value: this.settings.particleSize },
         uOpacity: { value: 0.8 },
@@ -414,6 +418,15 @@ class ParticleMorpher {
     const pawnBtn = document.getElementById("btn-pawn");
     const explodeBtn = document.getElementById("btn-explode");
 
+    // Control Toggle
+    const controlPanel = document.querySelector(".control-panel");
+    const controlToggle = document.getElementById("control-toggle");
+    if (controlPanel && controlToggle) {
+      controlToggle.addEventListener("click", () => {
+        controlPanel.classList.toggle("collapsed");
+      });
+    }
+
     if (queenBtn)
       queenBtn.addEventListener("click", () => this.morphTo("queen"));
     if (pawnBtn) pawnBtn.addEventListener("click", () => this.morphTo("pawn"));
@@ -482,6 +495,42 @@ class ParticleMorpher {
       autoMorphCheck.addEventListener("change", (e) => {
         this.settings.autoMorph = (e.target as HTMLInputElement).checked;
         if (this.settings.autoMorph) this.lastMorphTime = performance.now();
+      });
+    }
+
+    // Radius Slider
+    const radiusSlider = document.getElementById(
+      "interaction-radius-slider"
+    ) as HTMLInputElement;
+    const radiusValue = document.getElementById("radius-value");
+    if (radiusSlider) {
+      radiusSlider.addEventListener("input", (e) => {
+        const val = parseFloat((e.target as HTMLInputElement).value);
+        this.settings.interactionRadius = val;
+        if (
+          this.particles &&
+          this.particles.material instanceof THREE.ShaderMaterial
+        )
+          this.particles.material.uniforms.uRadius.value = val;
+        if (radiusValue) radiusValue.textContent = val.toFixed(1);
+      });
+    }
+
+    // Strength Slider
+    const strengthSlider = document.getElementById(
+      "interaction-strength-slider"
+    ) as HTMLInputElement;
+    const strengthValue = document.getElementById("strength-value");
+    if (strengthSlider) {
+      strengthSlider.addEventListener("input", (e) => {
+        const val = parseFloat((e.target as HTMLInputElement).value);
+        this.settings.interactionStrength = val;
+        if (
+          this.particles &&
+          this.particles.material instanceof THREE.ShaderMaterial
+        )
+          this.particles.material.uniforms.uStrength.value = val;
+        if (strengthValue) strengthValue.textContent = val.toFixed(1);
       });
     }
 

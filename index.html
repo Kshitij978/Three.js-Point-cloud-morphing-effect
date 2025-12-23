@@ -75,105 +75,168 @@
 
     <!-- Control Panel -->
     <div class="control-panel">
-      <div class="control-header">
-        <h3>Controls</h3>
-      </div>
+      <button
+        class="control-toggle"
+        id="control-toggle"
+        aria-label="Toggle controls"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
 
-      <div class="control-section">
-        <label class="control-label">Shapes</label>
-        <div class="shape-buttons">
-          <button class="shape-btn active" data-shape="queen" id="btn-queen">
-            <span class="shape-number">01</span>
-            <span class="shape-name">Queen</span>
-          </button>
-          <button class="shape-btn" data-shape="pawn" id="btn-pawn">
-            <span class="shape-number">02</span>
-            <span class="shape-name">Pawn</span>
-          </button>
-          <button class="shape-btn" data-shape="explode" id="btn-explode">
-            <span class="shape-number">03</span>
-            <span class="shape-name">Explode</span>
-          </button>
+      <div class="control-scroll-container">
+        <div class="control-header">
+          <h3>Controls</h3>
         </div>
-      </div>
 
-      <div class="control-section">
-        <label class="control-label" for="speed-slider">
-          Animation Speed
-          <span class="control-value" id="speed-value">1.0x</span>
-        </label>
-        <input
-          type="range"
-          id="speed-slider"
-          class="slider"
-          min="0.1"
-          max="3"
-          step="0.1"
-          value="1"
-        />
-      </div>
-
-      <div class="control-section">
-        <label class="control-label" for="particle-size-slider">
-          Particle Size
-          <span class="control-value" id="size-value">1.6</span>
-        </label>
-        <input
-          type="range"
-          id="particle-size-slider"
-          class="slider"
-          min="0.5"
-          max="4"
-          step="0.1"
-          value="1.6"
-        />
-      </div>
-
-      <div class="control-section">
-        <label class="control-label">Particle Color</label>
-        <div class="color-picker">
-          <button
-            class="color-btn active"
-            data-color="#088cff"
-            style="background: #088cff"
-          ></button>
-          <button
-            class="color-btn"
-            data-color="#ff052b"
-            style="background: #ff052b"
-          ></button>
-          <button
-            class="color-btn"
-            data-color="#00ff88"
-            style="background: #00ff88"
-          ></button>
-          <button
-            class="color-btn"
-            data-color="#ff00ff"
-            style="background: #ff00ff"
-          ></button>
-          <button
-            class="color-btn"
-            data-color="#ffaa00"
-            style="background: #ffaa00"
-          ></button>
-          <button
-            class="color-btn"
-            data-color="#ffffff"
-            style="background: #ffffff"
-          ></button>
+        <div class="control-section">
+          <label class="control-label">Shapes</label>
+          <div class="shape-buttons">
+            <button class="shape-btn active" data-shape="queen" id="btn-queen">
+              <span class="shape-number">01</span>
+              <span class="shape-name">Queen</span>
+            </button>
+            <button class="shape-btn" data-shape="pawn" id="btn-pawn">
+              <span class="shape-number">02</span>
+              <span class="shape-name">Pawn</span>
+            </button>
+            <button class="shape-btn" data-shape="explode" id="btn-explode">
+              <span class="shape-number">03</span>
+              <span class="shape-name">Explode</span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div class="control-section row">
-        <label class="control-label">
-          <input type="checkbox" id="auto-rotate" checked />
-          Auto Rotate
-        </label>
-        <label class="control-label">
-          <input type="checkbox" id="auto-morph" checked />
-          Auto Morph
-        </label>
+        <div class="control-row">
+          <div class="control-section half">
+            <label class="control-label" for="speed-slider">
+              Speed
+              <span class="control-value" id="speed-value">1.0x</span>
+            </label>
+            <input
+              type="range"
+              id="speed-slider"
+              class="slider"
+              min="0.1"
+              max="3"
+              step="0.1"
+              value="1"
+            />
+          </div>
+
+          <div class="control-section half">
+            <label class="control-label" for="particle-size-slider">
+              Size
+              <span class="control-value" id="size-value">1.6</span>
+            </label>
+            <input
+              type="range"
+              id="particle-size-slider"
+              class="slider"
+              min="0.5"
+              max="4"
+              step="0.1"
+              value="1.6"
+            />
+          </div>
+        </div>
+
+        <div class="control-section">
+          <label class="control-label">Interaction</label>
+          <div class="control-row secondary">
+            <div class="control-sub-section">
+              <label class="control-label sub" for="interaction-radius-slider">
+                Radius
+                <span class="control-value" id="radius-value">3.0</span>
+              </label>
+              <input
+                type="range"
+                id="interaction-radius-slider"
+                class="slider"
+                min="1"
+                max="15"
+                step="0.1"
+                value="3.0"
+              />
+            </div>
+
+            <div class="control-sub-section">
+              <label
+                class="control-label sub"
+                for="interaction-strength-slider"
+              >
+                Strength
+                <span class="control-value" id="strength-value">10.0</span>
+              </label>
+              <input
+                type="range"
+                id="interaction-strength-slider"
+                class="slider"
+                min="1"
+                max="40"
+                step="0.5"
+                value="10.0"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <label class="control-label">Particle Color</label>
+          <div class="color-picker">
+            <button
+              class="color-btn active"
+              data-color="#088cff"
+              style="background: #088cff"
+            ></button>
+            <button
+              class="color-btn"
+              data-color="#ff052b"
+              style="background: #ff052b"
+            ></button>
+            <button
+              class="color-btn"
+              data-color="#00ff88"
+              style="background: #00ff88"
+            ></button>
+            <button
+              class="color-btn"
+              data-color="#ff00ff"
+              style="background: #ff00ff"
+            ></button>
+            <button
+              class="color-btn"
+              data-color="#ffaa00"
+              style="background: #ffaa00"
+            ></button>
+            <button
+              class="color-btn"
+              data-color="#ffffff"
+              style="background: #ffffff"
+            ></button>
+          </div>
+        </div>
+
+        <div class="control-section row">
+          <label class="control-label">
+            <input type="checkbox" id="auto-rotate" checked />
+            Auto Rotate
+          </label>
+          <label class="control-label">
+            <input type="checkbox" id="auto-morph" checked />
+            Auto Morph
+          </label>
+        </div>
       </div>
     </div>
 
